@@ -59,7 +59,38 @@ contract BlindAuction {
             refund += bid.deposit;
             if (!fake && bid.deposit >= value) {
                 if (placeBid(msg.sender, value))
+                    refund -= value;
             }
+            bid.blindedBid = bytes32(0);
         }
+        msg.sender.transfer(refund);
+    }
+
+    function placeBid(address bidder, uint value) internal returns (bool success){
+        if (value <= highestBid) {
+            return false;
+        }
+        if (highestBidder != address(0)) {
+            // 返回之前的最高出价
+            pendingReturns[highestBidder] += highestBid;
+        }
+        highestBid = value;
+        highestBidder = bidder;
+        return true;
+    }
+
+    function withdraw() public {
+        uint amount = pendingReturns[msg.sender];
+        if (amount > 0) {
+            pendingReturns[msg.sender] = 0;
+            msg.sender.transfer(amount);
+        }
+    }
+
+    function auctionEnd() public onlyAfter(revealEnd) {
+        require(!ended);
+        emit AcutionEnded(highestBidder, highestBid);
+        ended = true;
+        beneficiary.transfer(highestBid);
     }
 }
